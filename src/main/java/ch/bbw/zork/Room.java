@@ -14,6 +14,7 @@ public class Room {
 	private ArrayList<Item> items;
 	private ArrayList<Hideable> hideables;
 	private ArrayList<Searchable> searchables;
+	private ArrayList<Note> notes;
 
 	public Room(String description) {
 		this.description = description;
@@ -21,6 +22,7 @@ public class Room {
 		this.items = new ArrayList<>();
 		this.hideables = new ArrayList<>();
 		this.searchables = new ArrayList<>();
+		this.notes = new ArrayList<>();
 	}
 
 	public void setExits(Room north, Room east, Room south, Room west) {
@@ -40,6 +42,10 @@ public class Room {
 		String itemsStr = getItemsString();
 		if (!itemsStr.isEmpty()) {
 			stringBuilder.append("\n").append(itemsStr);
+		}
+		String notesStr = getNotesString();
+		if (!notesStr.isEmpty()) {
+			stringBuilder.append("\n").append(notesStr);
 		}
 		String hideablesStr = getHideablesString();
 		if (!hideablesStr.isEmpty()) {
@@ -147,6 +153,31 @@ public class Room {
 			sb.append(" ").append(searchable.getName());
 		}
 		return sb.toString();
+	}
+	
+	public void addNote(Note note) {
+		notes.add(note);
+	}
+	
+	public Note removeNote(String noteName) {
+		for (int i = 0; i < notes.size(); i++) {
+			Note note = notes.get(i);
+			if (note.getName().equalsIgnoreCase(noteName)) {
+				notes.remove(i);
+				return note;
+			}
+		}
+		return null;
+	}
+	
+	public String getNotesString() {
+		if (notes.isEmpty()) {
+			return "";
+		}
+		if (notes.size() == 1) {
+			return "A note is lying here";
+		}
+		return "There are " + notes.size() + " notes lying here";
 	}
 
 }
