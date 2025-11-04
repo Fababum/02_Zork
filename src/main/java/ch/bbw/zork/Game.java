@@ -17,11 +17,14 @@ public class Game {
 	private Room sicherheitsraum, ueberwachungsraum, cafeteria, kueche, lagerraum;
 	private Room keller, heizungskeller, versteck, dachboden, aussenbereich;
 	private ArrayList<Item> inventory;
+	private int movesLeft;
+	private static final int MAX_MOVES_PER_ROUND = 2;
 
 	public Game() {
 
 		parser = new Parser(System.in);
 		inventory = new ArrayList<>();
+		movesLeft = MAX_MOVES_PER_ROUND;
 
 		// create rooms
 		empfangshalle = new Room("Reception Hall - large entrance hall with reception desk");
@@ -72,26 +75,22 @@ public class Game {
 
 		currentRoom = empfangshalle; // start game in Empfangshalle
 		
-		// add items to rooms
-		Item crowbar = new Item("crowbar", "A heavy crowbar - useful for breaking things");
-		kueche.addItem(crowbar);
-		
 		// add hideables to all rooms
-		empfangshalle.addHideable(new Hideable("desk", "Large reception desk"));
-		flurEG.addHideable(new Hideable("closet", "Storage closet"));
-		flurOG.addHideable(new Hideable("curtains", "Heavy curtains"));
-		bibliothek.addHideable(new Hideable("bookshelf", "Tall bookshelf"));
-		bueroChef.addHideable(new Hideable("desk", "Boss's large desk"));
-		tresorRaum.addHideable(new Hideable("vault", "Behind the large vault"));
-		sicherheitsraum.addHideable(new Hideable("cabinet", "Equipment cabinet"));
-		ueberwachungsraum.addHideable(new Hideable("console", "Under the monitor console"));
-		cafeteria.addHideable(new Hideable("counter", "Behind the counter"));
-		kueche.addHideable(new Hideable("pantry", "Storage pantry"));
-		lagerraum.addHideable(new Hideable("boxes", "Stack of boxes"));
-		keller.addHideable(new Hideable("corner", "Dark corner"));
-		heizungskeller.addHideable(new Hideable("pipes", "Behind the pipes"));
-		versteck.addHideable(new Hideable("alcove", "Hidden alcove"));
-		dachboden.addHideable(new Hideable("trunk", "Old trunk"));
+		empfangshalle.addHideable(new Hideable("desk", "Large reception desk with space underneath"));
+		flurEG.addHideable(new Hideable("closet", "Large storage closet"));
+		flurOG.addHideable(new Hideable("curtains", "Floor-to-ceiling heavy curtains"));
+		bibliothek.addHideable(new Hideable("bookshelf", "Tall bookshelf with space behind it"));
+		bueroChef.addHideable(new Hideable("wardrobe", "Large wooden wardrobe"));
+		tresorRaum.addHideable(new Hideable("vault", "Space behind the large vault door"));
+		sicherheitsraum.addHideable(new Hideable("cabinet", "Large equipment cabinet"));
+		ueberwachungsraum.addHideable(new Hideable("desk", "Control desk with space underneath"));
+		cafeteria.addHideable(new Hideable("counter", "Long counter with space behind it"));
+		kueche.addHideable(new Hideable("pantry", "Walk-in storage pantry"));
+		lagerraum.addHideable(new Hideable("boxes", "Large stack of boxes"));
+		keller.addHideable(new Hideable("corner", "Dark shadowy corner"));
+		heizungskeller.addHideable(new Hideable("pipes", "Behind the large heating pipes"));
+		versteck.addHideable(new Hideable("alcove", "Hidden wall alcove"));
+		dachboden.addHideable(new Hideable("trunk", "Large old trunk - big enough to fit inside"));
 		aussenbereich.addHideable(new Hideable("bushes", "Dense bushes"));
 		
 		// add searchables to rooms (some with items)
@@ -102,9 +101,10 @@ public class Game {
 		bueroChef.addSearchable(new Searchable("drawer", "Boss's desk drawer", new Item("key", "Small brass key")));
 		tresorRaum.addSearchable(new Searchable("safe", "Emergency safe", null));
 		sicherheitsraum.addSearchable(new Searchable("locker", "Security locker", null));
+		sicherheitsraum.addSearchable(new Searchable("vent", "Air vent in the wall - looks sealed", null, true));
 		ueberwachungsraum.addSearchable(new Searchable("desk", "Control desk", null));
 		cafeteria.addSearchable(new Searchable("cabinet", "Kitchen cabinet", null));
-		kueche.addSearchable(new Searchable("drawer", "Kitchen drawer", null));
+		kueche.addSearchable(new Searchable("drawer", "Kitchen drawer", new Item("crowbar", "A heavy crowbar - useful for breaking things")));
 		lagerraum.addSearchable(new Searchable("crate", "Wooden crate", null));
 		keller.addSearchable(new Searchable("shelves", "Metal shelves", null));
 		heizungskeller.addSearchable(new Searchable("toolbox", "Old toolbox", null));
@@ -135,10 +135,24 @@ public class Game {
 		System.out.println("Welcome to Zork!");
 		System.out.println("Zork is a simple adventure game.");
 		System.out.println();
-		System.out.println("Available commands:");
-		System.out.println("  " + parser.showCommands());
+		System.out.println("=== COMMANDS ===");
+		System.out.println("Movement (costs 1 action):");
+		System.out.println("  go <direction>     - Move to another room (north/south/east/west)");
+		System.out.println("  hide <object>      - Hide in an object");
+		System.out.println("  search <object>    - Search an object for items");
+		System.out.println();
+		System.out.println("Free actions (no cost):");
+		System.out.println("  take <item>        - Pick up an item");
+		System.out.println("  inventory          - Show your items");
+		System.out.println("  help               - Show help");
+		System.out.println("  quit               - Exit the game");
+		System.out.println();
+		System.out.println("You have " + MAX_MOVES_PER_ROUND + " actions per round!");
+		System.out.println("================");
 		System.out.println();
 		System.out.println(currentRoom.longDescription());
+		System.out.println();
+		System.out.println("Actions remaining: " + movesLeft);
 	}
 
 	private boolean processCommand(Command command) {
@@ -152,7 +166,14 @@ public class Game {
 			printHelp();
 
 		} else if (commandWord.equals("go")) {
-			goRoom(command);
+			if (movesLeft > 0) {
+				goRoom(command);
+				movesLeft--;
+				showMovesLeft();
+			} else {
+				System.out.println("No actions left this round!");
+				resetRound();
+			}
 
 		} else if (commandWord.equals("take")) {
 			takeItem(command);
@@ -160,14 +181,25 @@ public class Game {
 		} else if (commandWord.equals("inventory")) {
 			showInventory();
 			
-		} else if (commandWord.equals("vent")) {
-			useVent();
-			
 		} else if (commandWord.equals("hide")) {
-			hideInRoom(command);
+			if (movesLeft > 0) {
+				hideInRoom(command);
+				movesLeft--;
+				showMovesLeft();
+			} else {
+				System.out.println("No actions left this round!");
+				resetRound();
+			}
 			
 		} else if (commandWord.equals("search")) {
-			searchObject(command);
+			if (movesLeft > 0) {
+				searchObject(command);
+				movesLeft--;
+				showMovesLeft();
+			} else {
+				System.out.println("No actions left this round!");
+				resetRound();
+			}
 
 		} else if (commandWord.equals("quit")) {
 			if (command.hasSecondWord()) {
@@ -234,29 +266,6 @@ public class Game {
 		}
 	}
 	
-	private void useVent() {
-		if (currentRoom != sicherheitsraum) {
-			System.out.println("There is no vent here.");
-			return;
-		}
-		
-		boolean hasCrowbar = false;
-		for (Item item : inventory) {
-			if (item.getName().equalsIgnoreCase("crowbar")) {
-				hasCrowbar = true;
-				break;
-			}
-		}
-		
-		if (!hasCrowbar) {
-			System.out.println("The vent is sealed shut. You need something to break it open.");
-		} else {
-			System.out.println("You use the crowbar to break open the vent and crawl through...");
-			currentRoom = tresorRaum;
-			System.out.println(currentRoom.longDescription());
-		}
-	}
-	
 	private void hideInRoom(Command command) {
 		if (!command.hasSecondWord()) {
 			System.out.println("Hide where?");
@@ -286,6 +295,12 @@ public class Game {
 		if (searchable == null) {
 			System.out.println("You cannot search " + searchableName + " here!");
 		} else {
+			// Special handling for vent
+			if (searchable.isVent()) {
+				handleVent(searchable);
+				return;
+			}
+			
 			if (searchable.isSearched()) {
 				System.out.println("You already searched the " + searchable.getName() + ". Nothing else here.");
 			} else {
@@ -301,5 +316,48 @@ public class Game {
 				}
 			}
 		}
+	}
+	
+	private void handleVent(Searchable vent) {
+		if (currentRoom != sicherheitsraum) {
+			System.out.println("There is no vent here.");
+			return;
+		}
+		
+		boolean hasCrowbar = false;
+		for (Item item : inventory) {
+			if (item.getName().equalsIgnoreCase("crowbar")) {
+				hasCrowbar = true;
+				break;
+			}
+		}
+		
+		if (!hasCrowbar) {
+			System.out.println("The vent is sealed shut with metal screws. You need something to break it open.");
+		} else {
+			System.out.println("You use the crowbar to pry open the vent cover...");
+			System.out.println("The vent is big enough to crawl through!");
+			System.out.println("You crawl through the vent shaft...");
+			currentRoom = tresorRaum;
+			System.out.println();
+			System.out.println(currentRoom.longDescription());
+		}
+	}
+	
+	private void showMovesLeft() {
+		if (movesLeft == 0) {
+			System.out.println();
+			System.out.println("=== NEW ROUND ===");
+			movesLeft = MAX_MOVES_PER_ROUND;
+		}
+		System.out.println("Actions remaining: " + movesLeft);
+	}
+	
+	private void resetRound() {
+		System.out.println();
+		System.out.println("=== NEW ROUND ===");
+		movesLeft = MAX_MOVES_PER_ROUND;
+		System.out.println("Actions remaining: " + movesLeft);
+		System.out.println();
 	}
 }

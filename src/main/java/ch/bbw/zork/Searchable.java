@@ -9,12 +9,22 @@ public class Searchable {
     private String description;
     private Item item;
     private boolean searched;
+    private boolean isVent;
     
     public Searchable(String name, String description, Item item) {
         this.name = name;
         this.description = description;
         this.item = item;
         this.searched = false;
+        this.isVent = false;
+    }
+    
+    public Searchable(String name, String description, Item item, boolean isVent) {
+        this.name = name;
+        this.description = description;
+        this.item = item;
+        this.searched = false;
+        this.isVent = isVent;
     }
     
     public String getName() {
@@ -35,5 +45,9 @@ public class Searchable {
     
     public void setSearched(boolean searched) {
         this.searched = searched;
+    }
+    
+    public boolean isVent() {
+        return isVent;
     }
 }
