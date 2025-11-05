@@ -13,7 +13,7 @@ public class Guard {
 	private Random random;
 	private ArrayList<Room> patrolRoute;
 	private int patrolIndex;
-	private Room forbiddenRoom; // Room the guard cannot enter
+	private ArrayList<Room> forbiddenRooms; // Rooms the guard cannot enter
 	
 	public Guard(String name, Room startRoom) {
 		this.name = name;
@@ -21,7 +21,7 @@ public class Guard {
 		this.random = new Random();
 		this.patrolRoute = new ArrayList<>();
 		this.patrolIndex = 0;
-		this.forbiddenRoom = null;
+		this.forbiddenRooms = new ArrayList<>();
 	}
 	
 	public String getName() {
@@ -38,7 +38,7 @@ public class Guard {
 	}
 	
 	public void setForbiddenRoom(Room room) {
-		this.forbiddenRoom = room;
+		this.forbiddenRooms.add(room);
 	}
 	
 	/**
@@ -64,10 +64,10 @@ public class Guard {
 		Room south = currentRoom.nextRoom("south");
 		Room west = currentRoom.nextRoom("west");
 		
-		if (north != null && north != forbiddenRoom) possibleRooms.add(north);
-		if (east != null && east != forbiddenRoom) possibleRooms.add(east);
-		if (south != null && south != forbiddenRoom) possibleRooms.add(south);
-		if (west != null && west != forbiddenRoom) possibleRooms.add(west);
+		if (north != null && !forbiddenRooms.contains(north)) possibleRooms.add(north);
+		if (east != null && !forbiddenRooms.contains(east)) possibleRooms.add(east);
+		if (south != null && !forbiddenRooms.contains(south)) possibleRooms.add(south);
+		if (west != null && !forbiddenRooms.contains(west)) possibleRooms.add(west);
 		
 		// Move to a random adjacent room
 		if (!possibleRooms.isEmpty()) {

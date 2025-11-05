@@ -27,6 +27,12 @@ public class Game {
 	private boolean isHiding = false; // Track if player is currently hiding
 	private String currentHidingSpot = ""; // Track where player is hiding
 	private Guard guard; // The guard enemy
+	
+	// Score system
+	private int score = 0;
+	private boolean hasDisguise = false; // One-time use to avoid guard
+	private boolean hasEnergyDrink = false; // One-time use for extra action
+	private boolean guardShot = false; // Track if guard has been shot
 
 	public Game() {
 
@@ -57,7 +63,7 @@ public class Game {
 		dachboden.setExits(null, null, bibliothek, null);
 		
 		// Ebene OG
-		bibliothek.setExits(null, flurOG, keller, null);
+		bibliothek.setExits(dachboden, flurOG, keller, null);
 		flurOG.setExits(null, bueroChef, flurEG, bibliothek);
 		bueroChef.setExits(null, null, null, flurOG);
 		tresorRaum.setExits(null, null, sicherheitsraum, null);
@@ -105,6 +111,16 @@ public class Game {
 		gate.setGate(true);
 		gate.setRequiredItem("gatekey");
 		
+		// Setup locked attic door in bibliothek
+		Searchable atticDoor = new Searchable("atticdoor", "A heavy wooden door leading to the attic - sealed shut with old boards", null);
+		atticDoor.setDoor(true);
+		atticDoor.setRequiredItem("crowbar");
+		
+		// Setup roof hatch in dachboden
+		Searchable roofHatch = new Searchable("hatch", "A locked roof hatch leading outside - heavy padlock", null);
+		roofHatch.setGate(true); // Reuse gate logic for escape
+		roofHatch.setRequiredItem("pistol");
+		
 		// add hideables to all rooms
 		empfangshalle.addHideable(new Hideable("desk", "Large reception desk with space underneath"));
 		flurEG.addHideable(new Hideable("closet", "Large storage closet"));
@@ -124,15 +140,16 @@ public class Game {
 		aussenbereich.addHideable(new Hideable("bushes", "Dense bushes"));
 		
 		// add searchables to rooms (some with items)
-		empfangshalle.addSearchable(new Searchable("drawer", "Reception desk drawer", null));
-		flurEG.addSearchable(new Searchable("shelf", "Dusty shelf", null));
+		empfangshalle.addSearchable(new Searchable("drawer", "Reception desk drawer", new Item("bullets", "A box of pistol ammunition")));
+		flurEG.addSearchable(new Searchable("shelf", "Dusty shelf", new Item("disguise", "Security Guard Uniform - one-time use to avoid detection! (+50 points)")));
 		flurOG.addSearchable(new Searchable("cabinet", "Wall cabinet", null));
 		bibliothek.addSearchable(new Searchable("books", "Old books on shelf", new Item("keycard", "Security Keycard - grants access to restricted areas")));
+		bibliothek.addSearchable(atticDoor); // Add locked attic door
 		bueroChef.addSearchable(new Searchable("drawer", "Boss's desk drawer", null));
 		tresorRaum.addSearchable(safe);
-		sicherheitsraum.addSearchable(new Searchable("locker", "Security locker", null));
+		sicherheitsraum.addSearchable(new Searchable("locker", "Security locker", new Item("pistol", "A small pistol - needs ammunition")));
 		sicherheitsraum.addSearchable(new Searchable("vent", "Air vent in the wall - looks sealed", null, true));
-		ueberwachungsraum.addSearchable(new Searchable("desk", "Control desk", null));
+		ueberwachungsraum.addSearchable(new Searchable("desk", "Control desk", new Item("energydrink", "Energy Drink - one-time use for +1 extra action! (+30 points)")));
 		cafeteria.addSearchable(new Searchable("cabinet", "Kitchen cabinet", null));
 		kueche.addSearchable(new Searchable("drawer", "Kitchen drawer", new Item("crowbar", "A heavy crowbar - useful for breaking things")));
 		lagerraum.addSearchable(new Searchable("crate", "Wooden crate", null));
@@ -140,6 +157,7 @@ public class Game {
 		heizungskeller.addSearchable(new Searchable("toolbox", "Old toolbox with a piece of paper inside", new Item("code", "Paper with code - '1984'")));
 		versteck.addSearchable(new Searchable("chest", "Hidden chest", null));
 		dachboden.addSearchable(new Searchable("boxes", "Dusty boxes", null));
+		dachboden.addSearchable(roofHatch); // Add roof escape route
 		aussenbereich.addSearchable(new Searchable("bin", "Trash bin", null));
 		aussenbereich.addSearchable(gate);
 		
@@ -148,10 +166,12 @@ public class Game {
 		bueroChef.addNote(new Note("note", "A note on the desk - 'He enjoys reading during breaks'"));
 		sicherheitsraum.addNote(new Note("note", "A note pinned to the wall - 'Kitchen inventory check overdue'"));
 		tresorRaum.addNote(new Note("note", "A sticky note on the vault - 'Remember: The code is hidden in the boiler room'"));
+		dachboden.addNote(new Note("note", "A dusty note - 'Emergency exit: Roof hatch locked with heavy padlock. Force may be necessary.'"));
 		
 		// Initialize the guard - starts in storage room, moves randomly
 		guard = new Guard("Security Guard", lagerraum);
 		guard.setForbiddenRoom(tresorRaum); // Guard cannot enter vault room
+		guard.setForbiddenRoom(dachboden); // Guard cannot access attic
 	}
 
 
@@ -191,6 +211,8 @@ public class Game {
 		System.out.println("│ - Search for items                     │");
 		System.out.println("│ - Hide when the Guard is near          │");
 		System.out.println("│ - Unlock the exit gate to escape       │");
+		System.out.println("│ - Earn points for your actions!        │");
+		System.out.println("│   Check 'inventory' to see your score  │");
 		System.out.println("└────────────────────────────────────────┘");
 		System.out.println();
 		System.out.println("BASIC COMMANDS:");
@@ -198,6 +220,7 @@ public class Game {
 		System.out.println("  search <object> - Search for items");
 		System.out.println("  hide <object>   - Hide from the guard");
 		System.out.println("  pickup <note>   - Read notes");
+		System.out.println("  inventory       - Check items & score");
 		System.out.println("  map             - Show building map");
 		System.out.println("  help            - Full command list");
 		System.out.println();
@@ -258,6 +281,9 @@ public class Game {
 		} else if (commandWord.equals("map")) {
 			showMap();
 
+		} else if (commandWord.equals("use")) {
+			useItem(command);
+
 		} else if (commandWord.equals("quit")) {
 			if (command.hasSecondWord()) {
 				System.out.println("Quit what?");
@@ -304,16 +330,30 @@ public class Game {
 		System.out.println("    - Notes contain important clues!");
 		System.out.println();
 		System.out.println("  inventory");
-		System.out.println("    - Show items you're carrying");
+		System.out.println("    - Show items and current score");
 		System.out.println();
 		System.out.println("  map");
 		System.out.println("    - Show the building map");
+		System.out.println();
+		System.out.println("  use <item>");
+		System.out.println("    - Use a powerup item");
+		System.out.println("    - Example: use disguise, use energydrink");
 		System.out.println();
 		System.out.println("  help");
 		System.out.println("    - Show this help message");
 		System.out.println();
 		System.out.println("  quit");
 		System.out.println("    - Exit the game");
+		System.out.println();
+		System.out.println("=== SCORING ===");
+		System.out.println("- Find items: +10 points");
+		System.out.println("- Crack safe: +20 points");
+		System.out.println("- Pick up notes: +5 points");
+		System.out.println("- Hide from Guard: +5 points per encounter");
+		System.out.println("- Use disguise: +50 points");
+		System.out.println("- Use energy drink: +30 points");
+		System.out.println("- Escape via gate: +100 points");
+		System.out.println("- Escape via teleport: +150 points");
 		System.out.println();
 		System.out.println("=== TIPS ===");
 		System.out.println("- Read all notes - they have important hints!");
@@ -363,6 +403,9 @@ public class Game {
 	}
 	
 	private void showInventory() {
+		System.out.println("========================================");
+		System.out.println("Score: " + score + " points");
+		System.out.println("========================================");
 		if (inventory.isEmpty()) {
 			System.out.println("You are carrying nothing.");
 		} else {
@@ -370,6 +413,10 @@ public class Game {
 			for (Item item : inventory) {
 				System.out.println("  " + item.getName() + " - " + item.getDescription());
 			}
+		}
+		if (hasDisguise) {
+			System.out.println();
+			System.out.println("Active Power-up: Disguise (protects from 1 guard encounter)");
 		}
 	}
 	
@@ -511,6 +558,8 @@ public class Game {
 			System.out.println("Note added to inventory!");
 			System.out.println("You read the note:");
 			System.out.println(note.getText());
+			score += 5; // Points for finding note
+			System.out.println(">>> +5 POINTS! Current score: " + score);
 		}
 	}
 	
@@ -560,6 +609,8 @@ public class Game {
 				if (item != null) {
 					inventory.add(item);
 					System.out.println("You've got a new item in your inventory: " + item.getName());
+					score += 10; // Points for finding item
+					System.out.println(">>> +10 POINTS! Current score: " + score);
 				} else {
 					System.out.println("You find nothing useful.");
 				}
@@ -593,6 +644,8 @@ public class Game {
 					inventory.add(item);
 					System.out.println("You've got a new item in your inventory: " + item.getName());
 					System.out.println("You also find a pile of money inside!");
+					score += 20; // Bonus for cracking the safe
+					System.out.println(">>> +20 POINTS for cracking the safe! Current score: " + score);
 				}
 			} else {
 				System.out.println("*BEEP* Wrong code! The safe remains locked.");
@@ -614,15 +667,48 @@ public class Game {
 			}
 		}
 		
+		// Check if this is the roof hatch or main gate
+		boolean isRoofHatch = gate.getName().equalsIgnoreCase("hatch");
+		
+		// For pistol, also check if player has bullets
+		if (isRoofHatch && hasItem && !hasBullets()) {
+			System.out.println("You have the pistol but no ammunition!");
+			System.out.println("You need bullets to shoot the lock.");
+			return;
+		}
+		
 		if (!hasItem) {
-			System.out.println("The " + gate.getName() + " is locked with a heavy padlock. You need a " + requiredItemName + " to unlock it.");
+			if (isRoofHatch) {
+				System.out.println("The " + gate.getName() + " has a heavy padlock. You need a " + requiredItemName + " to shoot it off.");
+			} else {
+				System.out.println("The " + gate.getName() + " is locked with a heavy padlock. You need a " + requiredItemName + " to unlock it.");
+			}
 		} else {
-			System.out.println("You use the " + requiredItemName + " to unlock the gate!");
+			if (isRoofHatch) {
+				System.out.println("You load the pistol with bullets...");
+				System.out.println("You aim the pistol at the padlock...");
+				System.out.println("*BANG!* The shot echoes through the attic!");
+				System.out.println("The padlock shatters and falls to the ground!");
+				System.out.println("The roof hatch swings open, revealing the night sky...");
+				System.out.println("You climb through the hatch onto the roof!");
+				System.out.println("From the roof, you spot a fire escape ladder leading down...");
+				System.out.println("You climb down to freedom!");
+			} else {
+				System.out.println("You use the " + requiredItemName + " to unlock the gate!");
+			}
 			System.out.println();
+			score += 100; // Big bonus for escaping!
 			System.out.println("========================================");
 			System.out.println("   CONGRATULATIONS! YOU ESCAPED!");
 			System.out.println("========================================");
 			System.out.println("You've successfully escaped the building!");
+			if (isRoofHatch) {
+				System.out.println("ESCAPE ROUTE: Roof Hatch (Attic Route)");
+			} else {
+				System.out.println("ESCAPE ROUTE: Main Gate (Standard Route)");
+			}
+			System.out.println("FINAL SCORE: " + score + " points");
+			System.out.println("========================================");
 			System.out.println("Thank you for playing!");
 			System.exit(0);
 		}
@@ -688,6 +774,14 @@ public class Game {
 				tresorDoorOpen = true;
 				System.out.println("You can now go east to the Vault Room.");
 			}
+			
+			// Open attic door in bibliothek
+			if (door.getName().equalsIgnoreCase("atticdoor") && currentRoom == bibliothek) {
+				System.out.println("You pry the boards off the attic door with the crowbar!");
+				System.out.println("The door creaks open, revealing stairs leading up to the attic.");
+				bibliothek.setExits(dachboden, flurOG, keller, null);
+				System.out.println("You can now go north to the Attic.");
+			}
 		}
 	}
 	
@@ -728,13 +822,71 @@ public class Game {
 		System.out.println("Reality shifts around you...");
 		System.out.println("You materialize outside the building!");
 		System.out.println();
+		score += 150; // Easter egg bonus
 		System.out.println("========================================");
 		System.out.println("   CONGRATULATIONS! YOU ESCAPED!");
 		System.out.println("========================================");
 		System.out.println("You discovered the secret teleport easter egg!");
 		System.out.println("You've successfully escaped the building!");
+		System.out.println("FINAL SCORE: " + score + " points (+50 easter egg bonus!)");
+		System.out.println("========================================");
 		System.out.println("Thank you for playing!");
 		System.exit(0);
+	}
+	
+	private void useItem(Command command) {
+		if (!command.hasSecondWord()) {
+			System.out.println("Use what?");
+			return;
+		}
+		
+		String itemName = command.getSecondWord().toLowerCase();
+		
+		// Check if item exists in inventory
+		Item itemToUse = null;
+		for (Item item : inventory) {
+			if (item.getName().equalsIgnoreCase(itemName)) {
+				itemToUse = item;
+				break;
+			}
+		}
+		
+		if (itemToUse == null) {
+			System.out.println("You don't have a " + itemName + " in your inventory!");
+			return;
+		}
+		
+		// Handle disguise
+		if (itemName.equals("disguise")) {
+			if (hasDisguise) {
+				System.out.println("You've already used the disguise!");
+				return;
+			}
+			System.out.println("You put on the security guard uniform...");
+			System.out.println("Perfect! The guard won't recognize you now (ONE TIME USE)!");
+			hasDisguise = true;
+			score += 50; // Bonus points for using disguise
+			inventory.remove(itemToUse);
+			System.out.println(">>> +50 POINTS! Current score: " + score);
+			
+		// Handle energy drink
+		} else if (itemName.equals("energydrink")) {
+			if (hasEnergyDrink) {
+				System.out.println("You've already used an energy drink!");
+				return;
+			}
+			System.out.println("You drink the energy drink...");
+			System.out.println("You feel energized! +1 EXTRA ACTION this round!");
+			hasEnergyDrink = true;
+			movesLeft++; // Grant extra action
+			score += 30; // Bonus points for using energy drink
+			inventory.remove(itemToUse);
+			System.out.println(">>> +30 POINTS! Current score: " + score);
+			showMovesLeft();
+			
+		} else {
+			System.out.println("You can't use " + itemName + " like that. Try using it with the 'search' command instead.");
+		}
 	}
 	
 	private void showMovesLeft() {
@@ -768,6 +920,43 @@ public class Game {
 	
 	private void checkGuardEncounter() {
 		if (guard.getCurrentRoom() == currentRoom && !isHiding) {
+			// Check if player has both disguise, pistol AND bullets - shoot the guard!
+			if (hasDisguise && hasPistol() && hasBullets() && !guardShot) {
+				System.out.println();
+				System.out.println("*** The Guard enters the room! ***");
+				System.out.println("*** He sees you in the security uniform and approaches... ***");
+				System.out.println("*** You quickly pull out the pistol! ***");
+				System.out.println("*** *BANG!* You shoot the guard! ***");
+				System.out.println("*** The guard falls to the ground, unconscious! ***");
+				System.out.println("*** The way is clear - you can now escape freely! ***");
+				System.out.println();
+				guardShot = true;
+				score += 200; // Big bonus for eliminating the guard!
+				System.out.println(">>> +200 POINTS for neutralizing the guard! Current score: " + score);
+				System.out.println();
+				System.out.println("========================================");
+				System.out.println("   CONGRATULATIONS! YOU ESCAPED!");
+				System.out.println("========================================");
+				System.out.println("With the guard neutralized, you calmly walk out!");
+				System.out.println("ESCAPE ROUTE: Combat Victory (Secret Route)");
+				System.out.println("FINAL SCORE: " + score + " points");
+				System.out.println("========================================");
+				System.out.println("Thank you for playing!");
+				System.exit(0);
+			}
+			
+			// Check if player has disguise active (but no gun or bullets)
+			if (hasDisguise) {
+				System.out.println();
+				System.out.println("*** The Guard enters the room! ***");
+				System.out.println("*** He sees you in the security uniform... ***");
+				System.out.println("*** He nods at you - he thinks you're a colleague! ***");
+				System.out.println("*** The Guard continues his patrol... ***");
+				System.out.println("*** Your disguise has been used up! ***");
+				hasDisguise = false; // Disguise consumed
+				return;
+			}
+			
 			System.out.println();
 			System.out.println("========================================");
 			System.out.println("        GAME OVER!");
@@ -776,6 +965,8 @@ public class Game {
 			System.out.println("You've been caught and escorted out.");
 			System.out.println("Better luck next time!");
 			System.out.println("========================================");
+			System.out.println("Final Score: " + score + " points");
+			System.out.println("========================================");
 			System.exit(0);
 		} else if (guard.getCurrentRoom() == currentRoom && isHiding) {
 			System.out.println();
@@ -783,10 +974,30 @@ public class Game {
 			System.out.println("*** You hold your breath in your hiding spot... ***");
 			System.out.println("*** The Guard looks around but doesn't see you! ***");
 			System.out.println("*** The Guard leaves the room and continues his patrol... ***");
+			score += 5; // Points for successfully hiding from guard
+			System.out.println(">>> +5 POINTS for hiding successfully! Current score: " + score);
 			guard.move(); // Guard moves to random adjacent room
 			System.out.println("*** He moved to: " + guard.getCurrentRoom().shortDescription() + " ***");
 			System.out.println();
 		}
+	}
+	
+	private boolean hasPistol() {
+		for (Item item : inventory) {
+			if (item.getName().equalsIgnoreCase("pistol")) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	private boolean hasBullets() {
+		for (Item item : inventory) {
+			if (item.getName().equalsIgnoreCase("bullets")) {
+				return true;
+			}
+		}
+		return false;
 	}
 	
 	private void showMap() {
@@ -800,17 +1011,17 @@ public class Game {
 		System.out.println("    |");
 		System.out.println("    |");
 		System.out.println("[Bibliothek]---[Flur OG]---[Buero Chef]---[Tresor Raum]");
-		System.out.println("    |            |                           |");
-		System.out.println("    |            |                           |");
-		System.out.println("    |            |                           |");
+		System.out.println("    |              |                               |");
+		System.out.println("    |              |                               |");
+		System.out.println("    |              |                               |");
 		System.out.println("[Keller]------[Flur EG]------[Empfangshalle] [Sicherheitsraum]");
-		System.out.println("    |            |                |              |");
-		System.out.println("    |            |                |              |");
-		System.out.println("    |            |                |              |");
+		System.out.println("    |              |                |              |");
+		System.out.println("    |              |                |              |");
+		System.out.println("    |              |                |              |");
 		System.out.println("[Heizungskeller]-[Kueche]------[Cafeteria]---[Ueberwachungsraum]");
-		System.out.println("    |            |                |");
-		System.out.println("    |            |                |");
-		System.out.println("    |            |                |");
+		System.out.println("    |              |                |");
+		System.out.println("    |              |                |");
+		System.out.println("    |              |                |");
 		System.out.println("[Versteck]------[Lagerraum]--[Aussenbereich]");
 		System.out.println();
 		System.out.println("Your current location: " + currentRoom.shortDescription());
