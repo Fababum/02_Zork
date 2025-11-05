@@ -22,6 +22,11 @@ public class Game {
 	private int movesLeft;
 	private static final int MAX_MOVES_PER_ROUND = 2;
 	private boolean tresorDoorOpen = false; // Track if the vault door to boss office is open
+	private int hiddenInVersteckCount = 0; // Track how many times player hid in versteck
+	private boolean teleportMachineRevealed = false; // Track if teleport machine is revealed
+	private boolean isHiding = false; // Track if player is currently hiding
+	private String currentHidingSpot = ""; // Track where player is hiding
+	private Guard guard; // The guard enemy
 
 	public Game() {
 
@@ -143,6 +148,10 @@ public class Game {
 		bueroChef.addNote(new Note("note", "A note on the desk - 'He enjoys reading during breaks'"));
 		sicherheitsraum.addNote(new Note("note", "A note pinned to the wall - 'Kitchen inventory check overdue'"));
 		tresorRaum.addNote(new Note("note", "A sticky note on the vault - 'Remember: The code is hidden in the boiler room'"));
+		
+		// Initialize the guard - starts in storage room, moves randomly
+		guard = new Guard("Security Guard", lagerraum);
+		guard.setForbiddenRoom(tresorRaum); // Guard cannot enter vault room
 	}
 
 
@@ -164,27 +173,41 @@ public class Game {
 
 	private void printWelcome() {
 		System.out.println();
-		System.out.println("Welcome to Zork!");
-		System.out.println("Zork is a simple adventure game.");
+		System.out.println("╔════════════════════════════════════════╗");
+		System.out.println("║     WELCOME TO ZORK ESCAPE GAME        ║");
+		System.out.println("╚════════════════════════════════════════╝");
 		System.out.println();
-		System.out.println("=== COMMANDS ===");
-		System.out.println("Movement (costs 1 action):");
-		System.out.println("  go <direction>     - Move to another room (north/south/east/west)");
-		System.out.println("  hide <object>      - Hide in an object");
-		System.out.println("  search <object>    - Search an object for items");
+		System.out.println("You wake up locked inside a mysterious building.");
+		System.out.println("Your goal: ESCAPE before the guard catches you!");
 		System.out.println();
-		System.out.println("Free actions (no cost):");
-		System.out.println("  pickup <note>      - Pick up and read a note");
-		System.out.println("  inventory          - Show your items");
-		System.out.println("  help               - Show help");
-		System.out.println("  quit               - Exit the game");
+		System.out.println("┌─ STORY ────────────────────────────────┐");
+		System.out.println("│ A Security Guard patrols the building. │");
+		System.out.println("│ If he finds you: GAME OVER!            │");
+		System.out.println("│ Hide to avoid detection.               │");
+		System.out.println("└────────────────────────────────────────┘");
 		System.out.println();
-		System.out.println("You have " + MAX_MOVES_PER_ROUND + " actions per round!");
-		System.out.println("================");
+		System.out.println("┌─ QUICK START ──────────────────────────┐");
+		System.out.println("│ - Find notes - they contain clues!     │");
+		System.out.println("│ - Search for items                     │");
+		System.out.println("│ - Hide when the Guard is near          │");
+		System.out.println("│ - Unlock the exit gate to escape       │");
+		System.out.println("└────────────────────────────────────────┘");
+		System.out.println();
+		System.out.println("BASIC COMMANDS:");
+		System.out.println("  go <direction>  - Move around (north/south/east/west)");
+		System.out.println("  search <object> - Search for items");
+		System.out.println("  hide <object>   - Hide from the guard");
+		System.out.println("  pickup <note>   - Read notes");
+		System.out.println("  map             - Show building map");
+		System.out.println("  help            - Full command list");
+		System.out.println();
+		System.out.println("Type 'help' for detailed instructions.");
+		System.out.println("────────────────────────────────────────");
 		System.out.println();
 		System.out.println(currentRoom.longDescription());
 		System.out.println();
 		System.out.println("Actions remaining: " + movesLeft);
+		System.out.println();
 	}
 
 	private boolean processCommand(Command command) {
@@ -212,9 +235,8 @@ public class Game {
 			
 		} else if (commandWord.equals("hide")) {
 			if (movesLeft > 0) {
-				hideInRoom(command);
 				movesLeft--;
-				showMovesLeft();
+				hideInRoom(command);
 			} else {
 				System.out.println("No actions left this round!");
 				resetRound();
@@ -233,6 +255,9 @@ public class Game {
 		} else if (commandWord.equals("pickup")) {
 			pickupNote(command);
 
+		} else if (commandWord.equals("map")) {
+			showMap();
+
 		} else if (commandWord.equals("quit")) {
 			if (command.hasSecondWord()) {
 				System.out.println("Quit what?");
@@ -244,14 +269,61 @@ public class Game {
 	}
 
 	private void printHelp() {
-		System.out.println("You are lost. You are alone. You wander");
-		System.out.println("around in a mysterious building.");
 		System.out.println();
-		System.out.println("Your available commands are:");
-		System.out.println("  " + parser.showCommands());
+		System.out.println("========================================");
+		System.out.println("           HELP - COMMANDS");
+		System.out.println("========================================");
 		System.out.println();
-		System.out.println("Free actions (no action cost): inventory, help, pickup");
-		System.out.println("Action cost (1 action): go, hide, search");
+		System.out.println("=== OBJECTIVE ===");
+		System.out.println("Find the exit gate and unlock it to escape!");
+		System.out.println("Avoid the Security Guard - he moves every round!");
+		System.out.println();
+		System.out.println("=== ACTIONS (Cost: 1 action point) ===");
+		System.out.println("  go <direction>");
+		System.out.println("    - Move to another room");
+		System.out.println("    - Directions: north, south, east, west");
+		System.out.println("    - Example: go north");
+		System.out.println();
+		System.out.println("  search <object>");
+		System.out.println("    - Search an object for items");
+		System.out.println("    - Example: search drawer");
+		System.out.println("    - Some objects need special items to open!");
+		System.out.println();
+		System.out.println("  hide <object>");
+		System.out.println("    - Hide in an object (costs 1 action)");
+		System.out.println("    - Example: hide desk");
+		System.out.println("    - While hiding:");
+		System.out.println("      1. Stay hidden - costs 1 additional action");
+		System.out.println("      2. Exit - FREE, no action cost");
+		System.out.println("    - Hiding protects you from the Guard!");
+		System.out.println();
+		System.out.println("=== FREE ACTIONS (No cost) ===");
+		System.out.println("  pickup <note>");
+		System.out.println("    - Pick up and read a note");
+		System.out.println("    - Example: pickup note");
+		System.out.println("    - Notes contain important clues!");
+		System.out.println();
+		System.out.println("  inventory");
+		System.out.println("    - Show items you're carrying");
+		System.out.println();
+		System.out.println("  map");
+		System.out.println("    - Show the building map");
+		System.out.println();
+		System.out.println("  help");
+		System.out.println("    - Show this help message");
+		System.out.println();
+		System.out.println("  quit");
+		System.out.println("    - Exit the game");
+		System.out.println();
+		System.out.println("=== TIPS ===");
+		System.out.println("- Read all notes - they have important hints!");
+		System.out.println("- Search everything you can!");
+		System.out.println("- Hide when the Guard is nearby!");
+		System.out.println("- You have " + MAX_MOVES_PER_ROUND + " actions per round");
+		System.out.println("- Guard moves after every round!");
+		System.out.println("- Look for secret easter eggs...");
+		System.out.println();
+		System.out.println("========================================");
 	}
 
 	private void goRoom(Command command) {
@@ -285,6 +357,7 @@ public class Game {
 			else {
 				currentRoom = nextRoom;
 				System.out.println(currentRoom.longDescription());
+				checkGuardEncounter(); // Check if guard is in new room
 			}
 		}
 	}
@@ -314,6 +387,112 @@ public class Game {
 		} else {
 			System.out.println("You hide in the " + hideable.getName() + " - " + hideable.getDescription());
 			System.out.println("You feel safer here...");
+			
+			// Set hiding state
+			isHiding = true;
+			currentHidingSpot = hideable.getName();
+			
+			// Easter egg: Check if hiding in versteck
+			if (currentRoom == versteck) {
+				hiddenInVersteckCount++;
+				
+				if (hiddenInVersteckCount >= 4 && !teleportMachineRevealed) {
+					System.out.println();
+					System.out.println("*** As you hide, you notice the wall shifting slightly... ***");
+					System.out.println("*** A hidden panel opens, revealing a strange glowing machine! ***");
+					System.out.println("*** A TELEPORT MACHINE has been revealed! ***");
+					teleportMachineRevealed = true;
+					
+					// Add teleport machine to the room
+					Searchable teleportMachine = new Searchable("teleportmachine", "A mysterious glowing teleport machine with buttons", null);
+					teleportMachine.setDoor(true); // Use door flag for special handling
+					teleportMachine.setRequiredItem("easter-egg");
+					versteck.addSearchable(teleportMachine);
+				} else if (hiddenInVersteckCount < 4) {
+					System.out.println("(Hidden " + hiddenInVersteckCount + "/4 times in this room...)");
+				}
+			}
+			
+			// Action already deducted in processCommand, now check if round ended
+			if (movesLeft == 0) {
+				System.out.println();
+				System.out.println("=== NEW ROUND ===");
+				movesLeft = MAX_MOVES_PER_ROUND;
+				moveGuard(); // Guard moves if round ended
+			}
+			System.out.println("Actions remaining: " + movesLeft);
+			
+			// Ask player if they want to stay hidden or exit
+			askHidingOptions();
+		}
+	}
+	
+	private void askHidingOptions() {
+		while (isHiding) {
+			System.out.println();
+			System.out.println("You are hiding in the " + currentHidingSpot + ".");
+			System.out.println("What do you want to do?");
+			System.out.println("  1. Stay hidden");
+			System.out.println("  2. Exit hiding spot");
+			System.out.print("Enter choice (1 or 2): ");
+			
+			try {
+				BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+				String input = reader.readLine();
+				if (input == null || input.trim().isEmpty()) {
+					System.out.println("You exit the hiding spot.");
+					isHiding = false;
+					break;
+				}
+				
+				String choice = input.trim();
+				if (choice.equals("1")) {
+					System.out.println("You remain hidden in the " + currentHidingSpot + "...");
+					System.out.println("Time passes quietly...");
+					movesLeft--;
+					
+					// Check if we're in versteck and increment counter
+					if (currentRoom == versteck) {
+						hiddenInVersteckCount++;
+						
+						if (hiddenInVersteckCount >= 4 && !teleportMachineRevealed) {
+							System.out.println();
+							System.out.println("*** As you remain hidden, you notice the wall shifting slightly... ***");
+							System.out.println("*** A hidden panel opens, revealing a strange glowing machine! ***");
+							System.out.println("*** A TELEPORT MACHINE has been revealed! ***");
+							teleportMachineRevealed = true;
+							
+							// Add teleport machine to the room
+							Searchable teleportMachine = new Searchable("teleportmachine", "A mysterious glowing teleport machine with buttons", null);
+							teleportMachine.setDoor(true); // Use door flag for special handling
+							teleportMachine.setRequiredItem("easter-egg");
+							versteck.addSearchable(teleportMachine);
+						} else if (hiddenInVersteckCount < 4) {
+							System.out.println("(Hidden " + hiddenInVersteckCount + "/4 times in this room...)");
+						}
+					}
+					
+					showMovesLeft();
+					// Continue loop - ask again
+				} else if (choice.equals("2")) {
+					System.out.println("You carefully exit the " + currentHidingSpot + ".");
+					isHiding = false;
+					System.out.println();
+					System.out.println(currentRoom.longDescription());
+					showMovesLeft();
+					break;
+				} else {
+					System.out.println("Invalid choice. Please enter 1 or 2.");
+					// Continue loop - ask again
+				}
+			} catch (Exception e) {
+				System.out.println("You exit the hiding spot.");
+				isHiding = false;
+				System.out.println();
+				System.out.println(currentRoom.longDescription());
+				showMovesLeft();
+				break;
+			}
 		}
 	}
 	
@@ -452,6 +631,12 @@ public class Game {
 	private void handleDoor(Searchable door) {
 		String requiredItemName = door.getRequiredItem();
 		
+		// Special case: teleport machine easter egg
+		if (door.getName().equalsIgnoreCase("teleportmachine")) {
+			handleTeleportMachine();
+			return;
+		}
+		
 		// Special case: door handle from inside vault (only works if door not already open)
 		if (door.getName().equalsIgnoreCase("handle") && currentRoom == tresorRaum) {
 			if (tresorDoorOpen) {
@@ -532,11 +717,32 @@ public class Game {
 		}
 	}
 	
+	private void handleTeleportMachine() {
+		System.out.println();
+		System.out.println("*** TELEPORT MACHINE ACTIVATED! ***");
+		System.out.println("The machine hums with mysterious energy...");
+		System.out.println("A glowing portal opens before you...");
+		System.out.println();
+		System.out.println("*** WHOOOOSH! ***");
+		System.out.println("You feel your body dissolving into energy...");
+		System.out.println("Reality shifts around you...");
+		System.out.println("You materialize outside the building!");
+		System.out.println();
+		System.out.println("========================================");
+		System.out.println("   CONGRATULATIONS! YOU ESCAPED!");
+		System.out.println("========================================");
+		System.out.println("You discovered the secret teleport easter egg!");
+		System.out.println("You've successfully escaped the building!");
+		System.out.println("Thank you for playing!");
+		System.exit(0);
+	}
+	
 	private void showMovesLeft() {
 		if (movesLeft == 0) {
 			System.out.println();
 			System.out.println("=== NEW ROUND ===");
 			movesLeft = MAX_MOVES_PER_ROUND;
+			moveGuard(); // Guard moves every round
 		}
 		System.out.println("Actions remaining: " + movesLeft);
 	}
@@ -545,7 +751,71 @@ public class Game {
 		System.out.println();
 		System.out.println("=== NEW ROUND ===");
 		movesLeft = MAX_MOVES_PER_ROUND;
+		moveGuard(); // Guard moves when round resets
 		System.out.println("Actions remaining: " + movesLeft);
 		System.out.println();
 	}
+	
+	private void moveGuard() {
+		guard.move();
+		System.out.println();
+		System.out.println("*** You hear footsteps... The Guard is on patrol! ***");
+		System.out.println("(" + guard.getLocationDescription() + ")");
+		System.out.println();
+		
+		checkGuardEncounter();
+	}
+	
+	private void checkGuardEncounter() {
+		if (guard.getCurrentRoom() == currentRoom && !isHiding) {
+			System.out.println();
+			System.out.println("========================================");
+			System.out.println("        GAME OVER!");
+			System.out.println("========================================");
+			System.out.println("The Guard spotted you!");
+			System.out.println("You've been caught and escorted out.");
+			System.out.println("Better luck next time!");
+			System.out.println("========================================");
+			System.exit(0);
+		} else if (guard.getCurrentRoom() == currentRoom && isHiding) {
+			System.out.println();
+			System.out.println("*** The Guard enters the room! ***");
+			System.out.println("*** You hold your breath in your hiding spot... ***");
+			System.out.println("*** The Guard looks around but doesn't see you! ***");
+			System.out.println("*** The Guard leaves the room and continues his patrol... ***");
+			guard.move(); // Guard moves to random adjacent room
+			System.out.println("*** He moved to: " + guard.getCurrentRoom().shortDescription() + " ***");
+			System.out.println();
+		}
+	}
+	
+	private void showMap() {
+		System.out.println();
+		System.out.println("========================================");
+		System.out.println("            BUILDING MAP");
+		System.out.println("========================================");
+		System.out.println();
+		System.out.println("[Dachboden]");
+		System.out.println("    |");
+		System.out.println("    |");
+		System.out.println("    |");
+		System.out.println("[Bibliothek]---[Flur OG]---[Buero Chef]---[Tresor Raum]");
+		System.out.println("    |            |                           |");
+		System.out.println("    |            |                           |");
+		System.out.println("    |            |                           |");
+		System.out.println("[Keller]------[Flur EG]------[Empfangshalle] [Sicherheitsraum]");
+		System.out.println("    |            |                |              |");
+		System.out.println("    |            |                |              |");
+		System.out.println("    |            |                |              |");
+		System.out.println("[Heizungskeller]-[Kueche]------[Cafeteria]---[Ueberwachungsraum]");
+		System.out.println("    |            |                |");
+		System.out.println("    |            |                |");
+		System.out.println("    |            |                |");
+		System.out.println("[Versteck]------[Lagerraum]--[Aussenbereich]");
+		System.out.println();
+		System.out.println("Your current location: " + currentRoom.shortDescription());
+		System.out.println("Guard location: " + guard.getCurrentRoom().shortDescription());
+		System.out.println("========================================");
+	}
 }
+
