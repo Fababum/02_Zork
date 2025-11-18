@@ -1,6 +1,7 @@
 package ch.bbw.zork;
 
 import java.util.ArrayList;
+import java.util.Random;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
@@ -111,10 +112,13 @@ public class Game {
 		innerHandle.setRequiredItem("none"); // No item required from inside
 		tresorRaum.addSearchable(innerHandle);
 		
-		// Setup password-protected safe in tresorRaum
-		Searchable safe = new Searchable("safe", "Large vault safe - requires 4-digit code", new Item("gatekey", "Heavy Gate Key - opens the exit gate"));
-		safe.setPasswordProtected(true);
-		safe.setPassword("1984");
+	// Setup password-protected safe in tresorRaum
+	// Generate a random 4-digit vault code at game start
+	Random random = new Random();
+	String vaultCode = Integer.toString(random.nextInt(9000) + 1000); // 1000-9999
+	Searchable safe = new Searchable("safe", "Large vault safe - requires 4-digit code", new Item("gatekey", "Heavy Gate Key - opens the exit gate"));
+	safe.setPasswordProtected(true);
+	safe.setPassword(vaultCode);
 		
 		// Setup gate in aussenbereich
 		Searchable gate = new Searchable("gate", "The exit gate - locked with a heavy padlock", null);
@@ -164,7 +168,7 @@ public class Game {
 		kueche.addSearchable(new Searchable("drawer", "Kitchen drawer", new Item("crowbar", "A heavy crowbar - useful for breaking things")));
 		lagerraum.addSearchable(new Searchable("crate", "Wooden crate", null));
 		keller.addSearchable(new Searchable("shelves", "Metal shelves", null));
-		heizungskeller.addSearchable(new Searchable("toolbox", "Old toolbox with a piece of paper inside", new Item("code", "Paper with code - '1984'")));
+	heizungskeller.addSearchable(new Searchable("toolbox", "Old toolbox with a piece of paper inside", new Item("code", "Paper with code - '" + vaultCode + "'")));
 		versteck.addSearchable(new Searchable("chest", "Hidden chest", null));
 		dachboden.addSearchable(new Searchable("boxes", "Dusty boxes", null));
 		dachboden.addSearchable(roofHatch); // Add roof escape route
