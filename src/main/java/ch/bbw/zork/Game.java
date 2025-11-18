@@ -5,16 +5,25 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
 /**
- * Class Game - the main class of the "Zork" game.
+ * Game - the main game logic for Zork Escape Game.
+ *
+ * This class builds the world (rooms, items, searchable objects),
+ * handles the player's input loop, tracks inventory, score and the
+ * guard enemy. Methods are small and descriptive so the main play
+ * loop simply reads a Command and delegates to the appropriate
+ * handler.
  *
  * Author:  Michael Kolling, 1.1, March 2000
  * refactoring: Rinaldo Lanza, September 2020
  */
-
 public class Game {
 
+	// Input parser for reading player commands from the console
 	private Parser parser;
+	// The room the player is currently in
 	private Room currentRoom;
+	// Rooms used in the game world. Variable names follow the
+	// original German identifiers but the room descriptions are in English.
 	private Room empfangshalle, flurEG, flurOG, bibliothek, bueroChef, tresorRaum;
 	private Room sicherheitsraum, ueberwachungsraum, cafeteria, kueche, lagerraum;
 	private Room keller, heizungskeller, versteck, dachboden, aussenbereich;
@@ -35,6 +44,7 @@ public class Game {
 	private boolean guardShot = false; // Track if guard has been shot
 
 	public Game() {
+		// Build parser and initial state
 
 		parser = new Parser(System.in);
 		inventory = new ArrayList<>();
@@ -176,7 +186,8 @@ public class Game {
 
 
 	/**
-	 *  Main play routine.  Loops until end of play.
+	 * Start the main game loop: print welcome text, then repeatedly read
+	 * a command and process it until the player quits or the game ends.
 	 */
 	public void play() {
 		printWelcome();
@@ -191,6 +202,10 @@ public class Game {
 		System.out.println("Thank you for playing.  Good bye.");
 	}
 
+	/**
+	 * Print a friendly welcome screen with quick instructions and the
+	 * initial room description so the player can get started.
+	 */
 	private void printWelcome() {
 		System.out.println();
 		System.out.println("╔════════════════════════════════════════╗");
@@ -233,6 +248,10 @@ public class Game {
 		System.out.println();
 	}
 
+	/**
+	 * Process a single player command and perform the requested action.
+	 * Returns true when the player requested to quit the game.
+	 */
 	private boolean processCommand(Command command) {
 		if (command.isUnknown()) {
 			System.out.println("I don't know what you mean...");
@@ -366,6 +385,11 @@ public class Game {
 		System.out.println("========================================");
 	}
 
+	/**
+	 * Move the player in the direction provided by the command. Handles
+	 * special cases like locked vents and updates the currentRoom if the
+	 * move succeeds. It also checks for guard encounters after moving.
+	 */
 	private void goRoom(Command command) {
 		if (!command.hasSecondWord()) {
 			System.out.println("Go where?");
@@ -908,6 +932,10 @@ public class Game {
 		System.out.println();
 	}
 	
+	/**
+	 * Ask the guard to move and announce the movement to the player.
+	 * After the guard moves we immediately check for any encounter.
+	 */
 	private void moveGuard() {
 		guard.move();
 		System.out.println();
@@ -918,6 +946,12 @@ public class Game {
 		checkGuardEncounter();
 	}
 	
+	/**
+	 * Evaluate whether the guard and the player are in the same room and
+	 * resolve the outcome. The result can be: player escapes by
+	 * neutralizing the guard, uses a disguise, hides successfully, or
+	 * gets caught (game over).
+	 */
 	private void checkGuardEncounter() {
 		if (guard.getCurrentRoom() == currentRoom && !isHiding) {
 			// Check if player has both disguise, pistol AND bullets - shoot the guard!
@@ -1000,29 +1034,33 @@ public class Game {
 		return false;
 	}
 	
+	/**
+	 * Display a simple ASCII map to help the player navigate. This map is
+	 * purely informational and does not change game state.
+	 */
 	private void showMap() {
 		System.out.println();
 		System.out.println("========================================");
 		System.out.println("            BUILDING MAP");
 		System.out.println("========================================");
 		System.out.println();
-		System.out.println("[Dachboden]");
-		System.out.println("    |");
-		System.out.println("    |");
-		System.out.println("    |");
-		System.out.println("[Bibliothek]---[Flur OG]---[Buero Chef]---[Tresor Raum]");
+		System.out.println("[Attic]");
+		System.out.println("   |");
+		System.out.println("   |");
+		System.out.println("   |");
+		System.out.println("[Library]---[Upper Corridor]---[Boss Office]---[Vault Room]");
 		System.out.println("    |              |                               |");
 		System.out.println("    |              |                               |");
 		System.out.println("    |              |                               |");
-		System.out.println("[Keller]------[Flur EG]------[Empfangshalle] [Sicherheitsraum]");
+		System.out.println("[Cellar]------[Ground Corridor]------[Reception Hall] [Security Room]");
 		System.out.println("    |              |                |              |");
 		System.out.println("    |              |                |              |");
 		System.out.println("    |              |                |              |");
-		System.out.println("[Heizungskeller]-[Kueche]------[Cafeteria]---[Ueberwachungsraum]");
+		System.out.println("[Boiler Room]-[Kitchen]------[Cafeteria]---[Surveillance Room]");
 		System.out.println("    |              |                |");
 		System.out.println("    |              |                |");
 		System.out.println("    |              |                |");
-		System.out.println("[Versteck]------[Lagerraum]--[Aussenbereich]");
+		System.out.println("[Hideout]------[Storage Room]--[Outside Area]");
 		System.out.println();
 		System.out.println("Your current location: " + currentRoom.shortDescription());
 		System.out.println("Guard location: " + guard.getCurrentRoom().shortDescription());

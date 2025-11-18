@@ -25,6 +25,10 @@ public class Room {
 		this.notes = new ArrayList<>();
 	}
 
+	/**
+	 * Define the room's exits in the four cardinal directions. Pass
+	 * null for a direction that doesn't have an exit.
+	 */
 	public void setExits(Room north, Room east, Room south, Room west) {
 		exits.put("north", north);
 		exits.put("east", east);
@@ -32,10 +36,17 @@ public class Room {
 		exits.put("west", west);
 	}
 
+	/**
+	 * A short single-line description used in map and location prints.
+	 */
 	public String shortDescription() {
 		return description;
 	}
 
+	/**
+	 * A longer description used when the player enters the room. It
+	 * includes visible exits, items, notes and interactive objects.
+	 */
 	public String longDescription() {
 		StringBuilder stringBuilder = new StringBuilder("You are in " + description + ".\n");
 		stringBuilder.append(exitString());
@@ -58,6 +69,9 @@ public class Room {
 		return stringBuilder.toString();
 	}
 
+	/**
+	 * Build a short string listing the available exits (e.g. "Exits: north east").
+	 */
 	private String exitString() {
 		StringBuilder exitString = new StringBuilder("Exits:");
 		for (String direction : exits.keySet()) {
@@ -68,14 +82,25 @@ public class Room {
 		return exitString.toString();
 	}
 
+	/**
+	 * Return the room that lies in the given direction, or null if there
+	 * is no exit that way.
+	 */
 	public Room nextRoom(String direction) {
 		return exits.get(direction);
 	}
 	
+	/**
+	 * Add an item to this room's ground so the player can pick it up later.
+	 */
 	public void addItem(Item item) {
 		items.add(item);
 	}
 	
+	/**
+	 * Remove and return an item by name (case-insensitive). Returns null
+	 * when the item is not present.
+	 */
 	public Item removeItem(String itemName) {
 		for (int i = 0; i < items.size(); i++) {
 			Item item = items.get(i);
@@ -87,6 +112,9 @@ public class Room {
 		return null;
 	}
 	
+	/**
+	 * Check whether an item with the given name exists in the room.
+	 */
 	public boolean hasItem(String itemName) {
 		for (Item item : items) {
 			if (item.getName().equalsIgnoreCase(itemName)) {
@@ -96,6 +124,9 @@ public class Room {
 		return false;
 	}
 	
+	/**
+	 * Return a human-friendly string listing the items that lie here.
+	 */
 	public String getItemsString() {
 		if (items.isEmpty()) {
 			return "";
@@ -107,10 +138,16 @@ public class Room {
 		return sb.toString();
 	}
 	
+	/**
+	 * Manage places a player can hide in this room.
+	 */
 	public void addHideable(Hideable hideable) {
 		hideables.add(hideable);
 	}
 	
+	/**
+	 * Find a hideable by name (case-insensitive) or return null when not present.
+	 */
 	public Hideable getHideable(String hideableName) {
 		for (Hideable hideable : hideables) {
 			if (hideable.getName().equalsIgnoreCase(hideableName)) {
@@ -120,6 +157,9 @@ public class Room {
 		return null;
 	}
 	
+	/**
+	 * Return a short list of objects the player can hide in.
+	 */
 	public String getHideablesString() {
 		if (hideables.isEmpty()) {
 			return "";
@@ -131,10 +171,16 @@ public class Room {
 		return sb.toString();
 	}
 	
+	/**
+	 * Add an interactive object the player can search (drawers, lockers, vents).
+	 */
 	public void addSearchable(Searchable searchable) {
 		searchables.add(searchable);
 	}
 	
+	/**
+	 * Find a searchable object by name or null if it's not here.
+	 */
 	public Searchable getSearchable(String searchableName) {
 		for (Searchable searchable : searchables) {
 			if (searchable.getName().equalsIgnoreCase(searchableName)) {
@@ -144,6 +190,9 @@ public class Room {
 		return null;
 	}
 	
+	/**
+	 * Return a short description of searchable objects located in this room.
+	 */
 	public String getSearchablesString() {
 		if (searchables.isEmpty()) {
 			return "";
@@ -155,6 +204,9 @@ public class Room {
 		return sb.toString();
 	}
 	
+	/**
+	 * Note management: add or remove a note. Notes can be picked up by the player.
+	 */
 	public void addNote(Note note) {
 		notes.add(note);
 	}
@@ -170,6 +222,9 @@ public class Room {
 		return null;
 	}
 	
+	/**
+	 * Return a human-friendly description of notes lying here.
+	 */
 	public String getNotesString() {
 		if (notes.isEmpty()) {
 			return "";

@@ -5,10 +5,15 @@ package ch.bbw.zork;
  */
 public class Searchable {
     
+    // Name shown to the player when referencing this object (e.g. "drawer")
     private String name;
+    // Short description used in room text
     private String description;
+    // Optional item hidden in this searchable object
     private Item item;
+    // Whether this object was already searched
     private boolean searched;
+    // Special flags used to handle some objects differently
     private boolean isVent;
     private boolean isDoor;
     private String requiredItem;
@@ -43,18 +48,22 @@ public class Searchable {
     }
     
     public String getName() {
+        // Return the identifier players use when searching (e.g. "drawer")
         return name;
     }
     
     public String getDescription() {
+        // Short, human-readable description
         return description;
     }
     
     public Item getItem() {
+        // Return an item contained in this object (may be null)
         return item;
     }
     
     public boolean isSearched() {
+        // True when the player already looked here
         return searched;
     }
     
@@ -63,10 +72,12 @@ public class Searchable {
     }
     
     public boolean isVent() {
+        // True when this searchable is a vent (special traversal logic)
         return isVent;
     }
     
     public boolean isDoor() {
+        // True when this searchable represents a locked/interactive door
         return isDoor;
     }
     
@@ -75,6 +86,7 @@ public class Searchable {
     }
     
     public String getRequiredItem() {
+        // Name of the item required to open this door/gate (may be null)
         return requiredItem;
     }
     
@@ -83,6 +95,7 @@ public class Searchable {
     }
     
     public boolean isPasswordProtected() {
+        // True when this object requires a password to open
         return isPasswordProtected;
     }
     
@@ -91,6 +104,7 @@ public class Searchable {
     }
     
     public String getPassword() {
+        // The password needed to open (when password-protected)
         return password;
     }
     
@@ -99,6 +113,7 @@ public class Searchable {
     }
     
     public boolean isGate() {
+        // True when this searchable is an escape gate/hatch
         return isGate;
     }
     

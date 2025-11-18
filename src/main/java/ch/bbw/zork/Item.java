@@ -1,7 +1,10 @@
 package ch.bbw.zork;
 
 /**
- * Class Item - represents an item in the game
+ * Item - small value object for things the player can pick up.
+ *
+ * Items have a short name used in commands and a longer description
+ * shown in inventory lists.
  */
 public class Item {
     
@@ -14,10 +17,12 @@ public class Item {
     }
     
     public String getName() {
+        // Return the machine-friendly name used in commands
         return name;
     }
     
     public String getDescription() {
+        // Return a user-facing description for inventory output
         return description;
     }
 }

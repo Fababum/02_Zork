@@ -3,17 +3,32 @@ package ch.bbw.zork;
 import java.util.ArrayList;
 import java.util.Random;
 
+
 /**
- * Class Guard - represents a moving enemy in the game
+ * Guard - a simple moving enemy that patrols the building.
+ *
+ * The guard can either follow a predefined patrol route or move
+ * randomly between adjacent rooms. Some rooms can be marked as
+ * forbidden (the guard will not enter them). To make movement feel
+ * more natural we remember the previous room and avoid immediately
+ * stepping back when other options are available.
  */
 public class Guard {
-	
+
+	// Guard's display name (shown in messages)
 	private String name;
+	// Current room the guard is standing in
 	private Room currentRoom;
+	// Random number generator used for random movement
 	private Random random;
+	// Optional patrol route: if populated the guard follows these rooms
 	private ArrayList<Room> patrolRoute;
+	// Index into the patrol route (when used)
 	private int patrolIndex;
+	// Rooms the guard must not enter (e.g. vault, attic)
 	private ArrayList<Room> forbiddenRooms; // Rooms the guard cannot enter
+	// Remember the last room to reduce immediate backtracking
+	private Room previousRoom; // remember last room to avoid immediate backtracking
 	
 	public Guard(String name, Room startRoom) {
 		this.name = name;
@@ -22,6 +37,7 @@ public class Guard {
 		this.patrolRoute = new ArrayList<>();
 		this.patrolIndex = 0;
 		this.forbiddenRooms = new ArrayList<>();
+		this.previousRoom = null;
 	}
 	
 	public String getName() {
@@ -48,6 +64,7 @@ public class Guard {
 		if (!patrolRoute.isEmpty()) {
 			// Follow patrol route
 			patrolIndex = (patrolIndex + 1) % patrolRoute.size();
+			previousRoom = currentRoom;
 			currentRoom = patrolRoute.get(patrolIndex);
 		} else {
 			// Move randomly
@@ -71,7 +88,12 @@ public class Guard {
 		
 		// Move to a random adjacent room
 		if (!possibleRooms.isEmpty()) {
+			// Avoid immediately moving back to the previous room when possible
+			if (previousRoom != null && possibleRooms.size() > 1) {
+				possibleRooms.remove(previousRoom);
+			}
 			int randomIndex = random.nextInt(possibleRooms.size());
+			previousRoom = currentRoom;
 			currentRoom = possibleRooms.get(randomIndex);
 		}
 	}
